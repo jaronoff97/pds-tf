@@ -64,12 +64,6 @@ resource "aws_instance" "pds" {
   associate_public_ip_address = true
   ami                         = data.aws_ami.ubuntu22.id
 
-  ebs_block_device {
-    device_name = "/dev/xvda"
-    volume_size = 22
-    volume_type = "gp3"
-  }
-
   cpu_options {
     core_count       = 2
     threads_per_core = 1
@@ -81,11 +75,27 @@ resource "aws_instance" "pds" {
   }
   lifecycle {
     ignore_changes = [
-      # Ignore changes to tags, e.g. because a management agent
-      # updates these based on some ruleset managed elsewhere.
-      tags,
       user_data,
     ]
-  },
-  prevent_destroy = true
+    prevent_destroy = true
+  }
+}
+
+resource "aws_ebs_volume" "pds_datastore" {
+  availability_zone = "us-east-1a"
+  size              = 28
+  type              = "gp3"
+  final_snapshot    = true
+  lifecycle {
+    prevent_destroy = true
+  }
+  tags = {
+    Snapshot = "true"
+  }
+}
+
+resource "aws_volume_attachment" "pds" {
+  device_name = "/dev/xvda"
+  volume_id   = aws_ebs_volume.pds_datastore.id
+  instance_id = aws_instance.pds.id
 }
